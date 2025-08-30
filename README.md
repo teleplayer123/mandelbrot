@@ -1,0 +1,1 @@
+Animation of mandelbrot set in rust.

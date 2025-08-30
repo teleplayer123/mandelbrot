@@ -1,97 +1,156 @@
-use image::{ImageBuffer, RgbImage};
-use num_complex::Complex;
-use std::time::{Duration, Instant};
+// Cargo.toml
+// [dependencies]
+// minifb = "0.20"
 
-fn mandelbrot(c: Complex<f64>, max_iter: u32) -> u32 {
-    let mut z = Complex::new(0.0, 0.0);
-    for i in 0..max_iter {
-        if z.norm_sqr() > 4.0 {
-            return i;
-        }
-        z = z * z + c;
-    }
-    max_iter
+extern crate minifb;
+
+use minifb::{Key, Window, WindowOptions};
+
+const WIDTH: usize = 800;
+const HEIGHT: usize = 600;
+const INITIAL_MAX_ITER: u32 = 500;
+
+struct ZoomTarget {
+    x: f64,
+    y: f64,
+    _description: &'static str,
 }
 
-fn render_mandelbrot(
-    width: u32,
-    height: u32,
-    center: Complex<f64>,
-    scale: f64,
-    max_iter: u32,
-) -> RgbImage {
-    let mut img = ImageBuffer::new(width, height);
-
-    for (x, y, pixel) in img.enumerate_pixels_mut() {
-        let cx = center.re + (x as f64 - width as f64 / 2.0) * scale;
-        let cy = center.im + (y as f64 - height as f64 / 2.0) * scale;
-        let c = Complex::new(cx, cy);
-
-        let iter = mandelbrot(c, max_iter);
-        let color = if iter == max_iter {
-            [0, 0, 0] // Black for points inside the set
-        } else {
-            let hue = (iter as f64 / max_iter as f64) * 360.0;
-            let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
-            [r, g, b]
-        };
-        *pixel = image::Rgb(color);
-    }
-    img
-}
-
-fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (u8, u8, u8) {
-    if s == 0.0 {
-        let val = (v * 255.0) as u8;
-        return (val, val, val);
-    }
-
-    let h_i = (h / 60.0).floor() as i32;
-    let f = h / 60.0 - h_i as f64;
-    let p = v * (1.0 - s);
-    let q = v * (1.0 - s * f);
-    let t = v * (1.0 - s * (1.0 - f));
-
-    let (r, g, b) = match h_i {
-        0 => (v, t, p),
-        1 => (q, v, p),
-        2 => (p, v, t),
-        3 => (p, q, v),
-        4 => (t, p, v),
-        5 => (v, p, q),
-        _ => (0.0, 0.0, 0.0), // Should not happen
-    };
-
-    (
-        (r * 255.0) as u8,
-        (g * 255.0) as u8,
-        (b * 255.0) as u8,
-    )
-}
+// Predefined path of coordinates for the initial zoom
+const ZOOM_PATH: [ZoomTarget; 3] = [
+    ZoomTarget { x: -0.743643887037151, y: 0.131825904205330, _description: "The antenna" },
+    ZoomTarget { x: -0.1604, y: 1.0336, _description: "Upper spiral" },
+    ZoomTarget { x: -0.1554, y: 1.0332, _description: "Another upper spiral" },
+];
 
 fn main() {
-    let width = 800;
-    let height = 600;
-    let max_iter = 256;
-    let mut scale = 4.0;
-    let mut center = Complex::new(-0.5, 0.0);
-    let zoom_speed = 0.98;
-    let move_speed = 0.001; // Adjust for movement speed
+    let mut x_min = -2.5;
+    let mut x_max = 1.0;
+    let mut y_min = -1.2;
+    let mut y_max = 1.2;
 
-    let start_time = Instant::now();
-    let frame_duration = Duration::from_millis(33); // Approximately 30 FPS
-    for frame in 0..300 { // Render 300 frames
-        println!("Processing frame: {}", frame);
-        let img = render_mandelbrot(width, height, center, scale, max_iter);
-        img.save(format!("mandelbrot_{}.png", frame)).unwrap();
+    let zoom_speed = 0.99;
+    let mut current_target_index = 0;
+    let mut max_iter = INITIAL_MAX_ITER;
 
-        scale *= zoom_speed;
-        center += Complex::new(move_speed*frame as f64 * (frame as f64).cos(), move_speed*frame as f64 * (frame as f64).sin()); //Spiral move.
-        let elapsed = start_time.elapsed();
-        if elapsed < frame_duration {
-            std::thread::sleep(frame_duration - elapsed);
+    let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+
+    let mut window = match Window::new(
+        "Mandelbrot Zoom - ESC to exit",
+        WIDTH,
+        HEIGHT,
+        WindowOptions::default(),
+    ) {
+        Ok(win) => win,
+        Err(e) => {
+            eprintln!("Unable to create window: {}", e);
+            return;
+        }
+    };
+
+    window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+
+    while window.is_open() && !window.is_key_down(Key::Escape) {
+        let current_target = &ZOOM_PATH[current_target_index];
+        let target_x = current_target.x;
+        let target_y = current_target.y;
+
+        // Mandelbrot calculation loop
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                let c_re = x as f64 / WIDTH as f64 * (x_max - x_min) + x_min;
+                let c_im = y as f64 / HEIGHT as f64 * (y_max - y_min) + y_min;
+
+                let mut z_re = 0.0;
+                let mut z_im = 0.0;
+
+                let mut i = 0;
+                while i < max_iter && z_re * z_re + z_im * z_im < 4.0 {
+                    let z_re_temp = z_re * z_re - z_im * z_im + c_re;
+                    z_im = 2.0 * z_re * z_im + c_im;
+                    z_re = z_re_temp;
+                    i += 1;
+                }
+
+                let color = if i == max_iter {
+                    0x000000 // Black for points inside the set
+                } else {
+                    let hue = (i % 256) as u32;
+                    let r = (hue * 3) % 255;
+                    let g = (hue * 5) % 255;
+                    let b = (hue * 7) % 255;
+                    (r << 16) | (g << 8) | b
+                };
+                buffer[y * WIDTH + x] = color;
+            }
+        }
+
+        window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
+
+        // Zoom in on the target coordinates
+        x_min = target_x - (target_x - x_min) * zoom_speed;
+        x_max = target_x + (x_max - target_x) * zoom_speed;
+        y_min = target_y - (y_max - y_min) * zoom_speed;
+        y_max = target_y + (y_max - y_min) * zoom_speed;
+
+        // Check if we've "arrived" at the current target and switch if needed
+        let window_width = x_max - x_min;
+        if window_width < 1e-10 {
+            if current_target_index < ZOOM_PATH.len() - 1 {
+                current_target_index += 1;
+            } else {
+                // End of the initial path. Find a new point of interest to continue the zoom.
+                let mut new_target_x = 0.0;
+                let mut new_target_y = 0.0;
+                let mut max_found_iter = 0;
+
+                for y in 0..HEIGHT {
+                    for x in 0..WIDTH {
+                        let c_re = x as f64 / WIDTH as f64 * (x_max - x_min) + x_min;
+                        let c_im = y as f64 / HEIGHT as f64 * (y_max - y_min) + y_min;
+
+                        // Recalculate iterations for this high-resolution pixel
+                        let mut z_re = 0.0;
+                        let mut z_im = 0.0;
+                        let mut i = 0;
+                        while i < max_iter && z_re * z_re + z_im * z_im < 4.0 {
+                            let z_re_temp = z_re * z_re - z_im * z_im + c_re;
+                            z_im = 2.0 * z_re * z_im + c_im;
+                            z_re = z_re_temp;
+                            i += 1;
+                        }
+
+                        // We're looking for a point with a high number of iterations that's not black,
+                        // as this often indicates a repeating fractal.
+                        if i > max_found_iter && i < max_iter {
+                            max_found_iter = i;
+                            new_target_x = c_re;
+                            new_target_y = c_im;
+                        }
+                    }
+                }
+                
+                // If a new target was found, use it as the center for the next zoom
+                if max_found_iter > 0 {
+                    let new_view_width = (x_max - x_min) / 4.0;
+                    let new_view_height = (y_max - y_min) / 4.0;
+                    x_min = new_target_x - new_view_width;
+                    x_max = new_target_x + new_view_width;
+                    y_min = new_target_y - new_view_height;
+                    y_max = new_target_y + new_view_height;
+                } else {
+                    // If no new target is found (e.g., the screen is all black),
+                    // reset to a known good location and increase iterations.
+                    x_min = -0.743643887037151;
+                    x_max = -0.743643887037151 + (x_max-x_min);
+                    y_min = 0.131825904205330;
+                    y_max = 0.131825904205330 + (y_max-y_min);
+                }
+                
+                // Dynamically increase the iteration count to show new detail
+                max_iter += 500;
+                current_target_index = 0; // Reset the index to start a new zoom path
+            }
         }
     }
-
-    println!("Animation frames rendered.");
 }

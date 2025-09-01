@@ -11,16 +11,10 @@ const INITIAL_MAX_ITER: u32 = 500;
 struct ZoomTarget {
     x: f64,
     y: f64,
-    // A description of the target, for optional display
-    _description: &'static str,
 }
 
 // Predefined path of coordinates for zooming into mini-brots
-const ZOOM_PATH: [ZoomTarget; 3] = [
-    ZoomTarget { x: -0.743643887037151, y: 0.131825904205330, _description: "The antenna" },
-    ZoomTarget { x: -0.1604, y: 1.0336, _description: "Upper spiral" },
-    ZoomTarget { x: -0.1554, y: 1.0332, _description: "Another upper spiral" },
-];
+const ZOOM_PATH: ZoomTarget = ZoomTarget { x: -0.743643887037151, y: 0.131825904205330};
 
 fn main() {
     // Initial view window coordinates in the complex plane
@@ -31,8 +25,7 @@ fn main() {
 
     // Zoom speed and target index
     let zoom_speed = 0.70;
-    let mut current_target_index = 0;
-    let mut max_iter = INITIAL_MAX_ITER;
+    let max_iter = INITIAL_MAX_ITER;
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -53,9 +46,9 @@ fn main() {
 
     // Main Animation loop
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let current_target = &ZOOM_PATH[current_target_index];
-        let target_x = current_target.x;
-        let target_y = current_target.y;
+        let target = &ZOOM_PATH;
+        let target_x = target.x;
+        let target_y = target.y;
 
         // Mandelbrot calculation
         for y in 0..HEIGHT {
@@ -95,22 +88,13 @@ fn main() {
         y_min = target_y - (target_y - y_min) * zoom_speed;
         y_max = target_y + (y_max - target_y) * zoom_speed;
 
-        // Check if we've "arrived" at the current target and switch if needed
+        // Reset view if all black
         let window_width = x_max - x_min;
-        if window_width < 1e-5 {
-            println!("Reached target: {}", current_target._description);
-            if current_target_index < ZOOM_PATH.len() - 1 {
-                current_target_index += 1;
-                // Increase max iterations for more detail in the next zoom
-                max_iter += 500;
-            } else {
-                current_target_index = 0; // Loop back to the first target
-                max_iter = INITIAL_MAX_ITER; // Reset max iterations
-                x_min = -2.5;
-                x_max = 1.0;
-                y_min = -1.2;
-                y_max = 1.2;
-            }
+        if window_width < 1e-6 {
+            x_min = -2.5;
+            x_max = 1.0;
+            y_min = -1.2;
+            y_max = 1.2;
         }
     }
 }

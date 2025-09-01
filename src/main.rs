@@ -5,7 +5,7 @@ const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
 
 // Initial maximum number of iterations
-const INITIAL_MAX_ITER: u32 = 1000;
+const INITIAL_MAX_ITER: u32 = 500;
 
 // Struct to hold coordinates of a zoom target
 struct ZoomTarget {

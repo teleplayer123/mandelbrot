@@ -1,4 +1,4 @@
 Animation of mandelbrot set in rust.
-  
 
-<video src="https://github.com/teleplayer123/mandelbrot/blob/master/mandelbrot.mp4" autoplay loop muted playsinline width="600"></video>
+https://github.com/user-attachments/assets/493f0838-d6bb-4bfa-bc6c-6a410052f9f2
+

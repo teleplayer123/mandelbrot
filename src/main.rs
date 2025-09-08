@@ -25,7 +25,7 @@ fn main() {
 
     // Zoom speed and target index
     let zoom_speed = 0.70;
-    let max_iter = INITIAL_MAX_ITER;
+    let mut max_iter = INITIAL_MAX_ITER;
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -87,14 +87,7 @@ fn main() {
         x_max = target_x + (x_max - target_x) * zoom_speed;
         y_min = target_y - (target_y - y_min) * zoom_speed;
         y_max = target_y + (y_max - target_y) * zoom_speed;
-
-        // Reset view if all black
-        let window_width = x_max - x_min;
-        if window_width < 1e-6 {
-            x_min = -2.5;
-            x_max = 1.0;
-            y_min = -1.2;
-            y_max = 1.2;
-        }
+        // Gradually increase the maximum number of iterations for more detail
+        max_iter = (max_iter as f64 * 1.02) as u32;  
     }
 }

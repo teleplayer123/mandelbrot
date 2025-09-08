@@ -1,8 +1,15 @@
 use minifb::{Key, Window, WindowOptions};
-use std::fs::File;
+use std::fs::{self, File};
 use std::path::Path;
 use png::{Encoder};
-use std::fs;
+use clap::Parser;
+
+#[derive(Parser)]
+struct Args {
+    // Boolean flag to enable or disable saving images
+    #[arg(short, long, default_value_t = false)]
+    savefile: bool,
+}
 
 // Screen dimensions
 const WIDTH: usize = 800;
@@ -49,6 +56,8 @@ fn save_buffer_as_png(buffer: &[u32], width: usize, height: usize, filename: &st
 }
 
 fn main() {
+    let args = Args::parse();
+    let save_images = args.savefile;
     // Initial view window coordinates in the complex plane
     let mut x_min = -2.5;
     let mut x_max = 1.0;
@@ -113,16 +122,18 @@ fn main() {
                 buffer[y * WIDTH + x] = color;
             }
         }
-        // Save the current frame as an image
-        
-        let frame_filename = format!("mandelbrot_{}.png", filename_index);
-        if let Err(e) = save_buffer_as_png(&buffer, WIDTH, HEIGHT, &frame_filename) {
-            eprintln!("Failed to save image {}: {}", frame_filename, e);
-        } else {
-            println!("Saved image: {}", frame_filename);
-        }
-        filename_index += 1;
 
+        if save_images {
+            // Save the current frame as an image
+            let frame_filename = format!("mandelbrot_{}.png", filename_index);
+            if let Err(e) = save_buffer_as_png(&buffer, WIDTH, HEIGHT, &frame_filename) {
+                eprintln!("Failed to save image {}: {}", frame_filename, e);
+            } else {
+                println!("Saved image: {}", frame_filename);
+            }
+            filename_index += 1;
+        }
+        
         // Update the window with the mandelbrot buffer
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
         // Zoom in on the target coordinates

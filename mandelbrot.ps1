@@ -1,1 +1,1 @@
-ffmpeg -framerate 30 -i mandelbrot_%d.png -c:v libx264 -pix_fmt yuv420p output.mp4
+ffmpeg -framerate 1.02 -i output_frames\mandelbrot_%d.png -c:v libx264 -pix_fmt yuv420p mandelbrot.mp4

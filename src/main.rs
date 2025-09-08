@@ -1,4 +1,8 @@
 use minifb::{Key, Window, WindowOptions};
+use std::fs::File;
+use std::path::Path;
+use png::{Encoder};
+use std::fs;
 
 // Screen dimensions
 const WIDTH: usize = 800;
@@ -16,12 +20,42 @@ struct ZoomTarget {
 // Predefined path of coordinates for zooming into mini-brots
 const ZOOM_PATH: ZoomTarget = ZoomTarget { x: -0.743643887037151, y: 0.131825904205330};
 
+fn save_buffer_as_png(buffer: &[u32], width: usize, height: usize, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let output_dir = "output_frames";
+    fs::create_dir_all(output_dir)?; // Create the directory if it doesn't exist
+    let filename = format!("{}/{}", output_dir, filename);
+    let path = Path::new(&filename);
+    let file = File::create(path)?;
+    let ref mut w = std::io::BufWriter::new(file);
+
+    let mut encoder = Encoder::new(w, width as u32, height as u32);
+    encoder.set_color(png::ColorType::Rgb);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header()?;
+
+    // Convert buffer from u32 (0xRRGGBB) to Vec<u8> (RGB)
+    let mut data = Vec::with_capacity(width * height * 3);
+    for &pixel in buffer {
+        let r = ((pixel >> 16) & 0xFF) as u8;
+        let g = ((pixel >> 8) & 0xFF) as u8;
+        let b = (pixel & 0xFF) as u8;
+        data.push(r);
+        data.push(g);
+        data.push(b);
+    }
+
+    writer.write_image_data(&data)?;
+    Ok(())
+}
+
 fn main() {
     // Initial view window coordinates in the complex plane
     let mut x_min = -2.5;
     let mut x_max = 1.0;
     let mut y_min = -1.2;
     let mut y_max = 1.2;
+
+    let mut filename_index = 0;
 
     // Zoom speed and target index
     let zoom_speed = 0.70;
@@ -79,6 +113,15 @@ fn main() {
                 buffer[y * WIDTH + x] = color;
             }
         }
+        // Save the current frame as an image
+        
+        let frame_filename = format!("mandelbrot_{}.png", filename_index);
+        if let Err(e) = save_buffer_as_png(&buffer, WIDTH, HEIGHT, &frame_filename) {
+            eprintln!("Failed to save image {}: {}", frame_filename, e);
+        } else {
+            println!("Saved image: {}", frame_filename);
+        }
+        filename_index += 1;
 
         // Update the window with the mandelbrot buffer
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();

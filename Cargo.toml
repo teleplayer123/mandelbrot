@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 minifb = "0.20"
+image = "0.24"
+num-complex = "0.4"
+png = "0.18.0"

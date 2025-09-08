@@ -1,1 +1,1 @@
-ffmpeg -framerate 1.02 -i output_frames\mandelbrot_%d.png -c:v libx264 -pix_fmt yuv420p mandelbrot.mp4
+ffmpeg -framerate 1.02 -i output_frames\mandelbrot_%d.png -c:v libx264 -crf 30 -preset veryslow -pix_fmt yuv420p mandelbrot.mp4

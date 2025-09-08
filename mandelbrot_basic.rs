@@ -7,6 +7,20 @@ use image::{ImageBuffer, RgbImage};
 use num_complex::Complex;
 use std::time::{Duration, Instant};
 
+// fn mandelbrot(c_re: f64, c_im: f64, max_iter: u32) -> u32 {
+//     let mut z_re = 0.0;
+//     let mut z_im = 0.0;
+//     let mut i = 0;
+
+//     while i < max_iter && z_re * z_re + z_im * z_im < 4.0 {
+//         let z_re_temp = z_re * z_re - z_im * z_im + c_re;
+//         z_im = 2.0 * z_re * z_im + c_im;
+//         z_re = z_re_temp;
+//         i += 1;
+//     }
+//     i
+// }
+
 fn mandelbrot(c: Complex<f64>, max_iter: u32) -> u32 {
     let mut z = Complex::new(0.0, 0.0);
     for i in 0..max_iter {
